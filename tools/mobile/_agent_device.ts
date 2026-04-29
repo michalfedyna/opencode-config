@@ -1,7 +1,6 @@
-import { existsSync } from "node:fs"
 import { tool } from "@opencode-ai/plugin"
 
-export const AGENT_DEVICE_BIN = "/Users/fedyna/.config/opencode/agent-device/bin/agent-device.mjs"
+export const AGENT_DEVICE_BIN = "agent-device"
 
 export const platformSchema = tool.schema.enum(["ios", "macos", "android", "linux", "apple"])
 
@@ -63,15 +62,17 @@ export function addFindSnapshotFlags(argv: string[], args: Pick<SnapshotArgs, "d
 }
 
 export async function runAgentDevice(argv: string[], cwd: string, toolName: string) {
-  if (!existsSync(AGENT_DEVICE_BIN)) {
-    return `Missing local agent-device binary at ${AGENT_DEVICE_BIN}. Run \`pnpm build\` in /Users/fedyna/.config/opencode/agent-device.`
+  let proc: ReturnType<typeof Bun.spawn>
+  try {
+    proc = Bun.spawn([AGENT_DEVICE_BIN, ...argv], {
+      cwd,
+      stdout: "pipe",
+      stderr: "pipe",
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return `Missing npm-installed agent-device binary on PATH. Install it with \`npm install -g agent-device\`.\n${message}`
   }
-
-  const proc = Bun.spawn(["node", AGENT_DEVICE_BIN, ...argv], {
-    cwd,
-    stdout: "pipe",
-    stderr: "pipe",
-  })
   const [stdout, stderr, exitCode] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
